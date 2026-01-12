@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガラリサイズの計算</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        /* 入力フォーム */
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        /* 推奨値の案内 */
+        .guide-box {
+            background-color: #f3f4f6; padding: 10px; border-radius: 8px;
+            font-size: 13px; color: #666; margin-bottom: 15px;
+        }
+        .guide-title { font-weight: bold; margin-bottom: 4px; color: #444; }
+
+        /* 計算ボタン */
+        .btn-calc {
+            width: 100%; padding: 15px;
+            background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%); /* 空調カラー */
+            color: white; border: none; border-radius: 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: opacity 0.2s;
+        }
+        .btn-calc:active { opacity: 0.8; }
+        
+        /* 結果エリア */
+        .result-box {
+            background-color: #f8f9fa; border-radius: 12px;
+            padding: 15px; margin-top: 20px; text-align: left;
+            border-left: 5px solid #a855f7;
+            display: none; /* 初期非表示 */
+        }
+        .result-item { margin-bottom: 8px; font-size: 15px; color: #333; border-bottom: 1px dashed #ddd; padding-bottom: 8px; }
+        .result-item:last-child { border-bottom: none; }
+        .result-label { font-weight: bold; color: #555; font-size: 13px; }
+        .result-value { font-weight: bold; font-size: 16px; float: right; }
+
+        /* サブ計算エリア（サイズ検討） */
+        .sub-calc-box {
+            margin-top: 20px; border: 1px solid #ddd; border-radius: 12px;
+            padding: 15px; background: #fff; display: none; /* 初期非表示 */
+        }
+        .sub-calc-header {
+            font-size: 14px; font-weight: bold; color: #a855f7;
+            margin-bottom: 10px; display: flex; align-items: center;
+        }
+        .sub-calc-header i { margin-right: 6px; }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="ad-space ad-top-banner">トップバナー広告</div>
+
+        <div class="content-body">
+            <div class="app-container">
+                <a href="../hvac.html" class="back-link"><i class="fa-solid fa-chevron-left"></i></a>
+                
+                <div class="header-icon text-hvac"><i class="fa-solid fa-wind"></i></div>
+                <h2 class="text-hvac">ガラリサイズ計算</h2>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="input-group">
+                        <label>風量 (m³/h)</label>
+                        <input type="number" id="airVolume" placeholder="例: 3000">
+                    </div>
+                    <div class="input-group">
+                        <label>開口率 (%)</label>
+                        <input type="number" id="openingRate" placeholder="例: 30">
+                    </div>
+                    <div class="input-group">
+                        <label>面風速 (m/s)</label>
+                        <input type="number" id="faceVelocity" placeholder="例: 3.0">
+                    </div>
+
+                    <div class="guide-box">
+                        <div class="guide-title">【推奨面風速(国交省基準)】</div>
+                        <div>• 給気ガラリ：3.0 m/s 以下</div>
+                        <div>• 排気ガラリ：4.0 m/s 以下</div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <a href="#" onclick="clearAll(); return false;" style="color: #3b82f6; text-decoration: none;">クリア</a>
+                    </div>
+                    <button class="btn-calc" onclick="calculateGarari()">計算する</button>
+                </div>
+
+                <div id="mainResult" class="result-box">
+                    <div class="result-item">
+                        <span class="result-label">必要ガラリ面積</span>
+                        <span class="result-value" id="resArea">0 m²</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">参考寸法（正方形）</span>
+                        <span class="result-value" id="resSquare">0 mm × 0 mm</span>
+                    </div>
+                    <div class="result-item" style="border:none; padding-top:10px;">
+                        <span class="result-label" style="display:block; margin-bottom:5px;">推奨サイズ候補:</span>
+                        <div id="resRecList" style="font-size:14px; color:#333; text-align:right;"></div>
+                    </div>
+                </div>
+
+                <div id="subCalc" class="sub-calc-box">
+                    <div class="sub-calc-header">
+                        <i class="fa-solid fa-rectangle-list"></i> サイズ検討
+                    </div>
+                    <div class="input-group">
+                        <label>1辺のサイズ (mm) を入力</label>
+                        <input type="number" id="oneSideSize" placeholder="例: 600" oninput="calculateOtherSide()">
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">必要なもう一辺</span>
+                        <span class="result-value" id="resOtherSide" style="color:#a855f7">－</span>
+                    </div>
+                    <div class="result-item" style="border:none;">
+                        <span class="result-label">最終面風速</span>
+                        <span class="result-value" id="resFinalV" style="color:#3b82f6">－</span>
+                    </div>
+                </div>
+                
+                <p class="footer-note">計算式：必要面積 = (風量/3600) / 面風速 / (開口率/100)</p>
+                <div class="ad-space ad-mobile ad-mobile-only">広告 (Mobile Only)</div>
+            </div>
+
+            <div class="info-container">
+                <div class="info-content">
+                    <h3>ガラリ計算について</h3>
+                    <p>必要な通過風量と指定の面風速から、必要なガラリ面積を算出します。</p>
+                    <ul style="font-size: 14px; color: #666; padding-left: 20px;">
+                        <li>計算結果を基に、一般的な規格サイズから推奨寸法を提案します。</li>
+                        <li>「サイズ検討」欄で、幅を決めた場合の高さ（またはその逆）を逆算できます。</li>
+                    </ul>
+                </div>
+                <div class="ad-space ad-side-rect">広告 (PC Sidebar Rect)</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- グローバル変数 ---
+        let calculatedRequiredArea = 0; // m^2
+        let currentOpeningRate = 0; // %
+
+        // --- 1. メイン計算 ---
+        function calculateGarari() {
+            const Q_val = parseFloat(document.getElementById('airVolume').value);
+            const alpha_val = parseFloat(document.getElementById('openingRate').value);
+            const v_val = parseFloat(document.getElementById('faceVelocity').value);
+
+            if (!Q_val || !alpha_val || !v_val) {
+                alert("全ての項目を入力してください");
+                return;
+            }
+
+            // 計算ロジック (Swift準拠)
+            const Q_s = Q_val / 3600.0; // m3/s
+            const effectiveArea = Q_s / v_val; // 実効開口面積 m2
+            const requiredArea = effectiveArea / (alpha_val / 100.0); // 必要ガラリ面積 m2
+            
+            calculatedRequiredArea = requiredArea;
+            currentOpeningRate = alpha_val;
+
+            // 表示更新
+            document.getElementById('resArea').innerText = requiredArea.toFixed(3) + " m²";
+            
+            // 正方形参考寸法
+            const sideLength = Math.sqrt(requiredArea) * 1000;
+            const sideStr = sideLength.toFixed(0);
+            document.getElementById('resSquare').innerText = `${sideStr} mm × ${sideStr} mm`;
+
+            // 推奨サイズ算出
+            const recSizes = getRecommendedSizes(requiredArea);
+            const recListHtml = recSizes.map(s => `${s.w} × ${s.h}`).join("<br>");
+            document.getElementById('resRecList').innerHTML = recListHtml || "該当サイズなし";
+
+            // エリア表示
+            document.getElementById('mainResult').style.display = 'block';
+            document.getElementById('subCalc').style.display = 'block';
+
+            // サブ計算リセット
+            document.getElementById('oneSideSize').value = '';
+            document.getElementById('resOtherSide').innerText = '－';
+            document.getElementById('resFinalV').innerText = '－';
+        }
+
+        // --- 2. 推奨サイズ算出ロジック ---
+        function getRecommendedSizes(reqAreaM2) {
+            const standardSizes = [300, 400, 450, 500, 600, 700, 800, 900, 1000, 1200, 1500, 1800, 2000];
+            const reqAreaMm2 = reqAreaM2 * 1_000_000;
+            let candidates = [];
+
+            // 全組み合わせを総当たり
+            for (let w of standardSizes) {
+                for (let h of standardSizes) {
+                    const area = w * h;
+                    if (area >= reqAreaMm2) {
+                        const diff = Math.abs(area - reqAreaMm2);
+                        candidates.push({ w: w, h: h, area: area, diff: diff });
+                    }
+                }
+            }
+
+            // 差が小さい順にソート
+            candidates.sort((a, b) => a.diff - b.diff);
+
+            let results = [];
+            // アスペクト比2以下のものを優先して最大3つ
+            for (let c of candidates) {
+                if (results.length >= 3) break;
+                const aspect = Math.max(c.w, c.h) / Math.min(c.w, c.h);
+                if (aspect <= 2.0) {
+                    results.push(c);
+                }
+            }
+            // 足りなければアスペクト比無視で追加
+            if (results.length < 3) {
+                for (let c of candidates) {
+                    if (results.length >= 3) break;
+                    // 重複チェック（簡易）
+                    if (!results.includes(c)) results.push(c);
+                }
+            }
+
+            return results;
+        }
+
+        // --- 3. 片辺からの逆算 ---
+        function calculateOtherSide() {
+            const oneSideStr = document.getElementById('oneSideSize').value;
+            if (!oneSideStr || calculatedRequiredArea <= 0) {
+                document.getElementById('resOtherSide').innerText = '－';
+                document.getElementById('resFinalV').innerText = '－';
+                return;
+            }
+
+            const oneSide = parseFloat(oneSideStr);
+            if (oneSide <= 0) return;
+
+            // 必要面積(mm2) / 1辺(mm)
+            const reqAreaMm2 = calculatedRequiredArea * 1_000_000;
+            const otherSideRaw = reqAreaMm2 / oneSide;
+            
+            // 100mm単位で切り上げ
+            const otherSideRounded = Math.ceil(otherSideRaw / 100.0) * 100;
+            document.getElementById('resOtherSide').innerText = otherSideRounded.toFixed(0) + " mm";
+
+            // 最終面風速の再計算
+            // 実際の面積(m2)
+            const actualAreaM2 = (oneSide * otherSideRounded) / 1_000_000;
+            const effectiveArea = actualAreaM2 * (currentOpeningRate / 100.0);
+            
+            const Q_val = parseFloat(document.getElementById('airVolume').value);
+            const Q_s = Q_val / 3600.0;
+            
+            const finalV = Q_s / effectiveArea;
+            document.getElementById('resFinalV').innerText = finalV.toFixed(2) + " m/s";
+        }
+
+        // --- 4. クリア処理 ---
+        function clearAll() {
+            document.getElementById('airVolume').value = '';
+            document.getElementById('openingRate').value = '';
+            document.getElementById('faceVelocity').value = '';
+            document.getElementById('oneSideSize').value = '';
+            
+            document.getElementById('mainResult').style.display = 'none';
+            document.getElementById('subCalc').style.display = 'none';
+            
+            calculatedRequiredArea = 0;
+            currentOpeningRate = 0;
+        }
+    </script>
+</body>
+</html>

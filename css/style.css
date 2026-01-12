@@ -1,0 +1,192 @@
+/* css/style.css (Top Banner Version) */
+
+/* --- 基本設定 --- */
+body {
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+    background-color: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    color: #333;
+}
+
+/* --- 全体の枠組み --- */
+.main-wrapper {
+    max-width: 1000px;
+    margin: 20px auto;
+    padding: 0 20px;
+}
+
+/* --- 新追加：トップバナー広告 --- */
+.ad-top-banner {
+    width: 100%;
+    height: 100px; /* 一般的なバナーの高さ */
+    background-color: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    border-radius: 8px;
+    margin-bottom: 30px; /* アプリとの間隔 */
+}
+
+/* --- コンテンツエリア（アプリとサイドバーを横並びにする箱） --- */
+.content-body {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+}
+
+/* --- 左側：アプリ部分 --- */
+.app-container {
+    flex: 0 0 400px; /* PC幅固定 */
+    background-color: #ffffff;
+    padding: 30px 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    text-align: center;
+    position: relative;
+    box-sizing: border-box;
+}
+
+/* --- 右側：サイドバー --- */
+.info-container {
+    flex: 1;
+    min-width: 300px;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- 解説文エリア（広告を下に追いやるため） --- */
+.info-content {
+    margin-bottom: 20px;
+}
+
+/* --- 広告スペース共通 --- */
+.ad-space {
+    background-color: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    border-radius: 8px;
+}
+
+/* スマホ用広告（アプリ下） */
+.ad-mobile {
+    width: 100%;
+    height: 250px;
+    margin-top: 20px;
+}
+
+/* PC用サイドバー広告（サイズ調整済み） */
+.ad-side-rect {
+    width: 100%;
+    height: 300px; /* ★600pxから300pxに縮小しました */
+    position: sticky; /* スクロール追尾 */
+    top: 20px;
+}
+
+/* ページ下部のバナー広告 */
+.ad-bottom-banner {
+    width: 100%;
+    height: 100px; /* 横長バナーの標準サイズ */
+    background-color: #e4e4e7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    border-radius: 8px;
+    margin-top: 20px; /* 上のコンテンツとの間隔 */
+    margin-bottom: 30px; /* ページ最下部との間隔 */
+}
+
+/* --- 広告の出し分けロジック --- */
+/* PCの時は、アプリ下の広告(.ad-mobile-only)を消す */
+.ad-mobile-only { display: none; }
+
+/* スマホ（幅768px以下）の設定 */
+@media (max-width: 768px) {
+    .content-body {
+        flex-direction: column; /* 縦並び */
+        align-items: center;
+        gap: 20px;
+    }
+
+    .app-container {
+        width: 100%;
+        max-width: 480px;
+        flex: none;
+        border-radius: 0 0 20px 20px;
+        box-shadow: none;
+    }
+    
+    .info-container {
+        width: 100%;
+        max-width: 480px;
+    }
+
+    /* スマホの時はアプリ下の広告を表示 */
+    .ad-mobile-only { display: flex; }
+}
+
+/* css/style.css の一番下に追記 */
+
+/* iOSアプリリンクボタン */
+.ios-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 25px; /* タイトルとの間隔 */
+    padding: 10px 20px;
+    background-color: #000; /* Appleっぽい黒 */
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: bold;
+    border-radius: 30px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    transition: transform 0.2s, opacity 0.2s;
+}
+.ios-link:hover {
+    transform: translateY(-2px); /* ホバーで少し浮く */
+    opacity: 0.8;
+    color: #fff;
+}
+.ios-link i {
+    margin-right: 8px;
+    font-size: 18px;
+}
+
+/* --- ボタンなどのデザイン（変更なし） --- */
+h1 { font-size: 24px; margin-bottom: 30px; line-height: 1.4; }
+h2 { font-size: 20px; margin-bottom: 30px; font-weight: bold; }
+.header-icon { font-size: 50px; margin-bottom: 10px; }
+.menu-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 100%; padding: 15px 0; margin-bottom: 20px;
+    border-radius: 12px; color: white; font-size: 16px;
+    font-weight: bold; text-decoration: none;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    transition: transform 0.1s ease;
+    border: none; cursor: pointer; box-sizing: border-box;
+}
+.menu-btn:active { transform: scale(0.98); }
+.menu-btn i { margin-right: 10px; font-size: 20px; }
+.back-link { position: absolute; top: 20px; left: 20px; color: #ccc; font-size: 20px; text-decoration: none; }
+.footer-note { margin-top: 30px; color: #aaa; font-size: 12px; }
+
+/* 色設定 */
+.btn-hvac-top { background: linear-gradient(135deg, #c084fc 0%, #818cf8 100%); }
+.btn-plumbing-top { background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%); }
+.btn-elec-top { background: linear-gradient(135deg, #facc15 0%, #fb923c 100%); }
+.btn-sound-top { background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%); }
+.btn-calc-top { background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%); width: 60%; margin: 40px auto 0; }
+.text-hvac { color: #c084fc; } .btn-duct { background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%); } .btn-air { background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%); } .btn-heat { background: linear-gradient(90deg, #9333ea 0%, #6366f1 100%); }
+.text-plumbing { color: #4ade80; } .btn-green-1 { background: linear-gradient(90deg, #4ade80 0%, #2dd4bf 100%); } .btn-green-2 { background: linear-gradient(90deg, #34d399 0%, #10b981 100%); } .btn-green-3 { background: linear-gradient(90deg, #6ee7b7 0%, #3b82f6 100%); }
+.text-elec { color: #fbbf24; } .btn-orange { background: linear-gradient(90deg, #fbbf24 0%, #fb923c 100%); }

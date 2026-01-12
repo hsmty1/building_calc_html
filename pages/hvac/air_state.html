@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>空気状態の計算</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        /* 入力フォーム */
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        /* 計算ボタン */
+        .btn-calc {
+            width: 100%; padding: 15px;
+            background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+            color: white; border: none; border-radius: 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.2s;
+        }
+        .btn-calc:active { opacity: 0.8; }
+        
+        /* チャートエリア */
+        .chart-container {
+            margin-top: 30px; background: white;
+            border: 1px solid #ddd; border-radius: 8px;
+            padding: 10px; overflow: hidden; position: relative;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .chart-container:hover { border-color: #3b82f6; }
+        canvas { width: 100%; height: auto; background-color: #fff; display: block; }
+        .chart-title { font-size: 14px; font-weight: bold; color: #666; margin-bottom: 5px; text-align: center; }
+        .zoom-hint { text-align: center; font-size: 12px; color: #3b82f6; margin-top: 8px; font-weight: bold; }
+        .zoom-hint i { margin-right: 4px; }
+
+        /* 結果リスト（表形式） */
+        .result-container { margin-top: 20px; display: none; }
+        .result-table {
+            width: 100%; border-collapse: collapse; background: white;
+            font-size: 14px; border-radius: 8px; overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .result-table th { background-color: #f3f4f6; color: #555; padding: 10px 5px; font-size: 12px; border-bottom: 2px solid #ddd; }
+        .result-table td { padding: 10px 5px; border-bottom: 1px solid #eee; text-align: center; color: #333; }
+        .result-table tr:last-child td { border-bottom: none; }
+        .num-badge {
+            display: inline-block; width: 20px; height: 20px; line-height: 20px;
+            background-color: #ef4444; color: white; border-radius: 50%;
+            font-size: 12px; font-weight: bold;
+        }
+
+        /* モーダル */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.8); z-index: 1000;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background-color: white; padding: 10px;
+            width: 95%; max-width: 1000px; height: 90%; max-height: 800px;
+            border-radius: 8px; position: relative; display: flex; flex-direction: column;
+        }
+        .close-btn { position: absolute; top: 10px; right: 15px; font-size: 30px; color: #333; cursor: pointer; z-index: 10; }
+        .large-chart-scroll { flex: 1; overflow: auto; display: flex; justify-content: center; align-items: center; background: #f0f0f0; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="ad-space ad-top-banner">トップバナー広告</div>
+
+        <div class="content-body">
+            <div class="app-container">
+                <a href="../hvac.html" class="back-link"><i class="fa-solid fa-chevron-left"></i></a>
+                
+                <div class="header-icon" style="color: #3b82f6;"><i class="fa-solid fa-cloud-sun"></i></div>
+                <h2 style="color: #3b82f6; font-size: 20px; font-weight: bold; margin-bottom: 30px;">空気状態の計算</h2>
+
+                <div style="margin-bottom: 20px;">
+                    <div class="input-group">
+                        <label>乾球温度 (℃)</label>
+                        <input type="number" id="deg" placeholder="例: 26">
+                    </div>
+                    <div class="input-group">
+                        <label>相対湿度 (%)</label>
+                        <input type="number" id="hum" placeholder="例: 50">
+                    </div>
+                    <div class="input-group">
+                        <label>気圧 (hPa)</label>
+                        <input type="number" id="pre" value="1013.25">
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                        <a href="#" onclick="clearAll(); return false;" style="color: #3b82f6; text-decoration: none;">リセット</a>
+                    </div>
+                    <button class="btn-calc" onclick="calcPoint()">計算してプロット</button>
+                </div>
+
+                <div class="chart-container" onclick="openModal()">
+                    <div class="chart-title">空気線図プロット</div>
+                    <canvas id="psyChart" width="600" height="400"></canvas>
+                    <p class="zoom-hint"><i class="fa-solid fa-magnifying-glass-plus"></i> タップして詳細線図を拡大</p>
+                </div>
+
+                <div id="resultContainer" class="result-container">
+                    <h3 style="font-size: 16px; margin: 0 0 10px 0; color: #555;">計算履歴</h3>
+                    <table class="result-table">
+                        <thead>
+                            <tr>
+                                <th style="width:10%">No</th>
+                                <th style="width:25%">温湿</th>
+                                <th style="width:25%">ｴﾝﾀﾙﾋﾟ<br><span style="font-size:10px">(kJ/kg)</span></th>
+                                <th style="width:25%">絶対湿度<br><span style="font-size:10px">(kg/kg)</span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultBody">
+                            </tbody>
+                    </table>
+                </div>
+                
+                <p class="footer-note">計算式：Tetensの式に基づく</p>
+                <div class="ad-space ad-mobile ad-mobile-only">広告 (Mobile Only)</div>
+            </div>
+
+            <div class="info-container">
+                <div class="info-content">
+                    <h3>使い方</h3>
+                    <p>温度と湿度を入力して「計算」を押すと、結果がリストに追加され、グラフに①から順にプロットされます。</p>
+                    <ul style="font-size: 14px; color: #666; padding-left: 20px;">
+                        <li>リセットを押すと全ての点が消去されます。</li>
+                        <li>グラフをタップすると拡大表示できます。</li>
+                    </ul>
+                </div>
+                <div class="ad-space ad-side-rect">広告 (PC Sidebar Rect)</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="chartModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 style="margin: 0 0 10px 0; font-size:18px; color:#333;">詳細空気線図</h3>
+            <div class="large-chart-scroll">
+                <canvas id="psyChartLarge" width="1000" height="700"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- データ保持用 ---
+        let pointsList = []; // {no: 1, t: 26, rh: 50, x: 0.0105, h: 52.9, v: 21.0} の配列
+
+        // --- 1. 計算ロジック ---
+        function getProperties(deg, hum, pre) {
+            const a = deg + 237.3;
+            const b = 7.5 * deg;
+            const c = b / a;
+            const d = Math.pow(10, c);
+            const es = 6.1078 * d; 
+            const e = es * (hum / 100.0);
+            const x_kg = 0.622 * e / (pre - e); // kg/kg(DA)
+            const ent = 1.006 * deg + (1.86 * deg + 2501) * x_kg; // kJ/kg(DA)
+            const vol = (217 * e) / (deg + 273.15); // g/m3
+
+            return { enthalpy: ent, absHumKg: x_kg, volHum: vol };
+        }
+
+        // --- 2. 画面操作 ---
+        function clearAll() {
+            document.getElementById('deg').value = '';
+            document.getElementById('hum').value = '';
+            document.getElementById('resultContainer').style.display = 'none';
+            document.getElementById('resultBody').innerHTML = '';
+            pointsList = [];
+            drawSmallChart(); 
+        }
+
+        function calcPoint() {
+            const degStr = document.getElementById('deg').value;
+            const humStr = document.getElementById('hum').value;
+            const preStr = document.getElementById('pre').value;
+
+            if (degStr === "" || humStr === "") { alert("温度と湿度を入力してください"); return; }
+
+            const deg = parseFloat(degStr);
+            const hum = parseFloat(humStr);
+            const pre = parseFloat(preStr);
+            const res = getProperties(deg, hum, pre);
+
+            // データをリストに追加
+            const newPoint = {
+                no: pointsList.length + 1,
+                t: deg,
+                rh: hum,
+                x: res.absHumKg,
+                h: res.enthalpy,
+                v: res.volHum
+            };
+            pointsList.push(newPoint);
+
+            // 結果テーブルの表示更新
+            updateResultTable();
+            document.getElementById('resultContainer').style.display = 'block';
+
+            // チャート再描画（全ての点をプロット）
+            drawSmallChart();
+        }
+
+        function updateResultTable() {
+            const tbody = document.getElementById('resultBody');
+            // 最新のものが上に来るように逆順で表示する場合もあるが、今回は「①から順に下に」との要望なので正順で追加
+            // 既存をクリアして再構築（シンプル実装）
+            tbody.innerHTML = '';
+            pointsList.forEach(pt => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="num-badge">${pt.no}</span></td>
+                    <td>${pt.t}℃<br><span style="font-size:11px; color:#888">${pt.rh}%</span></td>
+                    <td>${pt.h.toFixed(1)}</td>
+                    <td>${pt.x.toFixed(4)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- 3. チャート設定 ---
+        const tMin = -10, tMax = 50;
+        const xMin = 0.0, xMax = 0.035;
+
+        function getPixel(t, x, canvas, padding) {
+            const plotW = canvas.width - padding.left - padding.right;
+            const plotH = canvas.height - padding.top - padding.bottom;
+            const px = padding.left + ((t - tMin) / (tMax - tMin)) * plotW;
+            const py = canvas.height - padding.bottom - ((x - xMin) / (xMax - xMin)) * plotH;
+            return { x: px, y: py };
+        }
+
+        // --- 4. 描画関数：通常チャート ---
+        function drawSmallChart() {
+            const canvas = document.getElementById('psyChart');
+            const ctx = canvas.getContext('2d');
+            const padding = { top: 20, right: 30, bottom: 30, left: 40 };
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBasicAxes(ctx, canvas, padding);
+            
+            for (let rh = 20; rh <= 100; rh += 20) {
+                drawRHCurve(ctx, canvas, padding, rh, false);
+            }
+
+            // 全ての点をプロット
+            pointsList.forEach(pt => {
+                drawPoint(ctx, canvas, padding, pt, 6, false);
+            });
+        }
+
+        // --- 5. 描画関数：詳細チャート ---
+        function drawLargeChart() {
+            const canvas = document.getElementById('psyChartLarge');
+            const ctx = canvas.getContext('2d');
+            const padding = { top: 30, right: 50, bottom: 50, left: 60 };
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // エンタルピー線（青字重複防止のため、温度軸付近にはラベルを描かない）
+            ctx.strokeStyle = "#e0f2fe"; ctx.lineWidth = 1;
+            ctx.beginPath();
+            for (let h = -10; h <= 120; h += 2) {
+                let first = true;
+                for (let t = tMin; t <= tMax; t += 1) {
+                    const x = (h - 1.006 * t) / (2501 + 1.86 * t);
+                    if (x >= xMin && x <= xMax) {
+                        const p = getPixel(t, x, canvas, padding);
+                        if (first) { ctx.moveTo(p.x, p.y); first = false; }
+                        else { ctx.lineTo(p.x, p.y); }
+                    }
+                }
+            }
+            ctx.stroke();
+
+            // エンタルピーラベル（温度軸と被らないよう、上部と左側のみに配置）
+            ctx.fillStyle = "#3b82f6"; ctx.font = "10px Arial"; ctx.textAlign = "center";
+            for (let h = 0; h <= 110; h += 5) { // 5kJ刻み
+                // 左端 (tMin) での x を計算
+                const xAtLeft = (h - 1.006 * tMin) / (2501 + 1.86 * tMin);
+                if (xAtLeft >= xMin && xAtLeft <= xMax) {
+                    const p = getPixel(tMin, xAtLeft, canvas, padding);
+                    ctx.fillText(h, p.x - 10, p.y + 4); // 左外側
+                }
+                
+                // 上端 (xMax) での t を計算
+                const tAtTop = (h - (2501 + 1.86 * tMax) * xMax) / 1.006; // 近似
+                // 正確には h = 1.006t + (2501+1.86t)x => h - 2501x = t(1.006 + 1.86x) => t = ...
+                const tAtTopCorrect = (h - 2501 * xMax) / (1.006 + 1.86 * xMax);
+                
+                if (tAtTopCorrect >= tMin && tAtTopCorrect <= tMax) {
+                    const p = getPixel(tAtTopCorrect, xMax, canvas, padding);
+                    ctx.fillText(h, p.x, p.y - 5); // 上外側
+                }
+                
+                // 下端(x=0)での描画は行わない（温度軸の黒字と被るため削除）
+            }
+
+            drawDetailedGrid(ctx, canvas, padding);
+
+            for (let rh = 10; rh <= 100; rh += 10) {
+                drawRHCurve(ctx, canvas, padding, rh, true);
+            }
+
+            drawBasicAxes(ctx, canvas, padding);
+
+            // 全ての点をプロット（詳細版）
+            pointsList.forEach(pt => {
+                drawPoint(ctx, canvas, padding, pt, 8, true);
+            });
+        }
+
+        // --- 共通描画ヘルパー ---
+        function drawBasicAxes(ctx, canvas, padding) {
+            ctx.strokeStyle = "#555"; ctx.lineWidth = 1; ctx.font = "12px Arial"; ctx.fillStyle = "#333"; ctx.textAlign = "center";
+            
+            const yBottom = canvas.height - padding.bottom;
+            ctx.beginPath(); ctx.moveTo(padding.left, yBottom); ctx.lineTo(canvas.width - padding.right, yBottom); ctx.stroke();
+            ctx.fillText("乾球温度 (℃)", canvas.width / 2, canvas.height - 5);
+            for (let t = tMin; t <= tMax; t += 5) {
+                const p = getPixel(t, xMin, canvas, padding);
+                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x, p.y + 5); ctx.stroke();
+                ctx.fillText(t, p.x, p.y + 18);
+            }
+
+            const xRight = canvas.width - padding.right;
+            ctx.beginPath(); ctx.moveTo(xRight, padding.top); ctx.lineTo(xRight, yBottom); ctx.stroke();
+            ctx.save(); ctx.translate(canvas.width - 5, canvas.height / 2); ctx.rotate(-Math.PI/2);
+            ctx.fillText("重量絶対湿度 (kg/kg)", 0, 0); ctx.restore();
+            
+            ctx.textAlign = "right";
+            for (let x = xMin; x <= xMax; x += 0.005) {
+                const p = getPixel(tMax, x, canvas, padding);
+                ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 5, p.y); ctx.stroke();
+                if(x > 0) ctx.fillText(x.toFixed(3), p.x - 5, p.y + 4);
+            }
+        }
+
+        function drawDetailedGrid(ctx, canvas, padding) {
+            ctx.strokeStyle = "#eee"; ctx.lineWidth = 1;
+            for (let t = tMin; t <= tMax; t += 1) {
+                if(t % 5 === 0) continue;
+                const p1 = getPixel(t, xMin, canvas, padding);
+                const p2 = getPixel(t, xMax, canvas, padding);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            }
+            for (let x = xMin; x <= xMax; x += 0.001) {
+                if(Math.round(x*1000)%5 === 0) continue;
+                const p1 = getPixel(tMin, x, canvas, padding);
+                const p2 = getPixel(tMax, x, canvas, padding);
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
+            }
+        }
+
+        function drawRHCurve(ctx, canvas, padding, rh, isDetailed) {
+            ctx.beginPath();
+            ctx.strokeStyle = (rh === 100) ? "#ef4444" : (isDetailed ? "#ccc" : "#ddd");
+            ctx.lineWidth = (rh === 100) ? 2 : 1;
+            let first = true;
+            for (let t = tMin; t <= tMax; t += 1) {
+                const es = 6.1078 * Math.pow(10, (7.5 * t) / (t + 237.3));
+                const e = es * (rh / 100.0);
+                const pre = 1013.25;
+                const x = 0.622 * e / (pre - e);
+                if (x <= xMax) {
+                    const p = getPixel(t, x, canvas, padding);
+                    if (first) { ctx.moveTo(p.x, p.y); first = false; }
+                    else { ctx.lineTo(p.x, p.y); }
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawPoint(ctx, canvas, padding, data, size, isLarge) {
+            if (data.t < tMin || data.t > tMax || data.x < xMin || data.x > xMax) return;
+            const p = getPixel(data.t, data.x, canvas, padding);
+            
+            ctx.beginPath(); ctx.arc(p.x, p.y, size, 0, 2 * Math.PI);
+            ctx.fillStyle = "red"; ctx.fill();
+            ctx.strokeStyle = "white"; ctx.lineWidth = 2; ctx.stroke();
+
+            // 番号の表示
+            ctx.fillStyle = "red"; ctx.font = isLarge ? "bold 16px Arial" : "bold 14px Arial"; ctx.textAlign = "left";
+            const label = "①②③④⑤⑥⑦⑧⑨⑩"[data.no - 1] || ("(" + data.no + ")");
+            ctx.fillText(label, p.x + size + 2, p.y + 5);
+
+            if (isLarge) {
+                // 詳細表示のみ座標テキストなどを表示
+                // ctx.fillText(...) はごちゃつくので番号のみにするか、必要に応じて追加
+            }
+        }
+
+        // --- モーダル制御 ---
+        function openModal() {
+            document.getElementById('chartModal').style.display = 'flex';
+            setTimeout(drawLargeChart, 100);
+        }
+        function closeModal(e) {
+            if (!e || e.target.id === 'chartModal' || e.target.classList.contains('close-btn')) {
+                document.getElementById('chartModal').style.display = 'none';
+            }
+        }
+
+        drawSmallChart();
+    </script>
+</body>
+</html>

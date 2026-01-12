@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>同時使用率の計算</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        /* 入力フォーム */
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        /* 計算ボタン */
+        .btn-calc {
+            width: 100%; padding: 15px;
+            background: linear-gradient(90deg, #4ade80 0%, #16a34a 100%); /* 緑系 */
+            color: white; border: none; border-radius: 30px;
+            font-size: 18px; font-weight: bold; cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.2s;
+        }
+        .btn-calc:active { opacity: 0.8; }
+        
+        /* 結果表示エリア */
+        .result-box {
+            background-color: #f8f9fa; border-radius: 12px;
+            padding: 15px; margin-top: 20px; text-align: left;
+            border-left: 5px solid #22c55e;
+            display: none; /* 初期非表示 */
+        }
+        .result-item { 
+            margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px dashed #ddd; 
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .result-item:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .res-label { font-size: 13px; color: #666; font-weight: bold; }
+        .res-val { font-size: 20px; font-weight: bold; color: #333; }
+        
+        /* 操作ボタン */
+        .action-btns { display: flex; justify-content: flex-end; margin-bottom: 20px; }
+        .btn-link { color: #2563eb; text-decoration: none; cursor: pointer; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        
+        <div class="ad-space ad-top-banner">トップバナー広告</div>
+
+        <div class="content-body">
+            
+            <div class="app-container">
+                <a href="../plumbing.html" class="back-link"><i class="fa-solid fa-chevron-left"></i></a>
+                
+                <div class="header-icon text-plumbing"><i class="fa-solid fa-users"></i></div>
+                <h2 class="text-plumbing">同時使用率計算</h2>
+
+                <div class="input-group">
+                    <label>器具数</label>
+                    <input type="number" id="kigusuu" placeholder="例: 10">
+                </div>
+
+                <div class="action-btns">
+                    <a onclick="clearAll(); return false;" class="btn-link">クリア</a>
+                </div>
+
+                <button class="btn-calc" onclick="calcConcurrency()">計算する</button>
+
+                <div id="resultBox" class="result-box">
+                    <div class="result-item">
+                        <span class="res-label">大便器 (洗浄弁など)</span>
+                        <span class="res-val" id="resDaibenki">－ %</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="res-label">その他 (一般器具)</span>
+                        <span class="res-val" id="resSonota">－ %</span>
+                    </div>
+                </div>
+                
+                <p class="footer-note">HASS 206 給排水衛生設備規準・同解説に基づく近似式</p>
+                
+                <div class="ad-space ad-mobile ad-mobile-only">広告 (Mobile Only)</div>
+            </div>
+
+            <div class="info-container">
+                <div class="info-content">
+                    <h3>同時使用率について</h3>
+                    <p>
+                        器具数に応じた同時使用率（％）を算出します。
+                    </p>
+                    <ul style="font-size: 14px; color: #666; padding-left: 20px;">
+                        <li>大便器（洗浄弁方式）</li>
+                        <li>その他（一般の衛生器具）</li>
+                    </ul>
+                </div>
+                <div class="ad-space ad-side-rect">広告 (PC Sidebar Rect)</div>
+            </div>
+
+        </div> 
+
+        <div class="ad-space ad-bottom-banner">ボトムバナー広告</div>
+
+    </div>
+
+    <script>
+        // --- 画面操作 ---
+        function clearAll() {
+            document.getElementById('kigusuu').value = '';
+            document.getElementById('resultBox').style.display = 'none';
+        }
+
+        function calcConcurrency() {
+            const val = parseFloat(document.getElementById('kigusuu').value);
+            
+            if (isNaN(val) || val <= 0) {
+                alert("正しい器具数を入力してください");
+                return;
+            }
+
+            document.getElementById('resDaibenki').innerText = calc1(val) + " %";
+            document.getElementById('resSonota').innerText = calc2(val) + " %";
+            
+            document.getElementById('resultBox').style.display = 'block';
+        }
+
+        // --- 計算ロジック (Swiftコードより移植) ---
+
+        // 1. 大便器
+        function calc1(kigusuu) {
+            if (kigusuu <= 2) return 100;
+            else if (kigusuu <= 4) return 50;
+            else if (kigusuu <= 8) return Math.floor(-2.5 * kigusuu + 60);
+            else if (kigusuu <= 12) return Math.floor(-2.5 * kigusuu + 60); // Swiftでは同じ式だったため踏襲
+            else if (kigusuu <= 16) return Math.floor(-0.75 * kigusuu + 39);
+            else if (kigusuu <= 24) return Math.floor(-0.5 * kigusuu + 35);
+            else if (kigusuu <= 32) return Math.floor(-0.5 * kigusuu + 35);
+            else if (kigusuu <= 40) return Math.floor(-0.25 * kigusuu + 27);
+            else if (kigusuu <= 50) return Math.floor(-0.2 * kigusuu + 25);
+            else if (kigusuu <= 70) return Math.floor(-0.15 * kigusuu + 22.5);
+            else return Math.floor(-0.0667 * kigusuu + 16.667);
+        }
+
+        // 2. その他
+        function calc2(kigusuu) {
+            if (kigusuu <= 2) return 100;
+            else if (kigusuu <= 4) return Math.floor(-15 * kigusuu + 130);
+            else if (kigusuu <= 8) return Math.floor(-3.75 * kigusuu + 85);
+            else if (kigusuu <= 12) return Math.floor(-1.75 * kigusuu + 69);
+            else if (kigusuu <= 16) return Math.floor(-0.75 * kigusuu + 57);
+            else if (kigusuu <= 24) return Math.floor(-0.375 * kigusuu + 51);
+            else if (kigusuu <= 32) return Math.floor(-0.25 * kigusuu + 48);
+            else if (kigusuu <= 40) return Math.floor(-0.125 * kigusuu + 40);
+            else if (kigusuu <= 50) return Math.floor(-0.1 * kigusuu + 43);
+            else if (kigusuu <= 70) return Math.floor(-0.15 * kigusuu + 45.5);
+            else return Math.floor(-0.0667 * kigusuu + 39.667);
+        }
+    </script>
+</body>
+</html>
