@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7755195198648116" crossorigin="anonymous"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>必要換気量計算（入力切替版）</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="../../css/style.css">
+    <style>
+        /* 共通スタイル調整 */
+        .input-group { margin-bottom: 10px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 12px; color: #555; }
+        .input-group input, .input-group select { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; box-sizing: border-box; }
+        
+        .btn-calc {
+            width: 100%; padding: 15px; background: linear-gradient(90deg, #a855f7 0%, #3b82f6 100%);
+            color: white; border: none; border-radius: 30px; font-size: 18px; font-weight: bold;
+            cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 10px;
+        }
+        .btn-add {
+            width: 100%; padding: 12px; background-color: #f0f0f0; color: #333;
+            border: 1px solid #ddd; border-radius: 30px; font-size: 16px; font-weight: bold;
+            cursor: pointer; margin-bottom: 10px;
+        }
+        .btn-delete {
+            background-color: #ffcccc; color: #cc0000; border: none; border-radius: 6px;
+            padding: 8px 16px; /* 横幅を確保するためにpaddingを調整 */
+            font-size: 14px; cursor: pointer; width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            white-space: nowrap; /* 文字の折り返し禁止 */
+        }
+
+        /* 部屋行のレイアウト */
+        .room-row {
+            background-color: #fff; padding: 15px;
+            border-radius: 10px; border: 1px solid #eee; margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .row-line {
+            display: flex; gap: 10px; margin-bottom: 10px;
+        }
+        .row-line:last-child { margin-bottom: 0; }
+        
+        /* 各カラムの幅調整 */
+        .col-method { flex: 2; }
+        .col-name { flex: 3; }
+        
+        /* col-numの基本設定 */
+        .col-num { flex: 1; min-width: 60px; }
+
+        /* 【修正箇所】削除ボタンのコンテナ幅を固定(40px)から自動(auto)に変更 */
+        .col-del { width: auto; display: flex; align-items: flex-end; padding-bottom: 2px; }
+
+        /* 動的エリアのスタイル */
+        .dynamic-area {
+            background-color: #f9fafa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px dashed #ccc;
+            margin-top: 5px;
+        }
+
+        .result-box {
+            background-color: #f8f9fa; border-radius: 12px; padding: 15px;
+            margin-top: 20px; text-align: left; border-left: 5px solid #c084fc;
+        }
+        .result-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        .result-table th, .result-table td { border-bottom: 1px solid #ddd; padding: 8px 4px; text-align: left; }
+        .result-table th { background-color: #f0f0f0; white-space: nowrap; }
+        
+        .error-msg { color: #ef4444; font-weight: bold; }
+        
+        /* スマホ対応 */
+        @media (max-width: 480px) {
+            .row-line { flex-wrap: wrap; }
+            .col-num { min-width: 45%; }
+            .col-del { width: 100%; margin-top: 5px; }
+            .btn-delete { padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="main-wrapper">
+        <div class="ad-space ad-top-banner">トップバナー広告</div>
+        <div class="content-body">
+            <div class="app-container">
+                <a href="../hvac.html" class="back-link"><i class="fa-solid fa-chevron-left"></i></a>
+                <div class="header-icon text-hvac"><i class="fa-solid fa-wind"></i></div>
+                <h2 class="text-hvac">必要換気量計算</h2>
+
+                <div style="margin-bottom: 20px;">
+                    <p style="font-size:13px; color:#666; margin-bottom:15px;">
+                        計算方法を選択すると入力項目が切り替わります。
+                    </p>
+
+                    <div id="rooms-container"></div>
+
+                    <button class="btn-add" onclick="addRoom()"><i class="fa-solid fa-plus"></i> 部屋を追加</button>
+
+                    <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
+                        <a href="#" onclick="clearForm(); return false;" style="color: #3b82f6; text-decoration: none; font-size:14px;">リセット</a>
+                    </div>
+
+                    <button class="btn-calc" onclick="calculateVent()">計算する</button>
+                </div>
+
+                <div id="resultArea"></div>
+                <p class="footer-note">計算式：建築基準法・シックハウス対策に基づく</p>
+                <div class="ad-space ad-mobile ad-mobile-only">広告 (Mobile Only)</div>
+            </div>
+
+            <div class="info-container">
+                <div class="info-content">
+                    <h3>入力項目について</h3>
+                    <p><strong>【人員による計算】</strong><br>
+                    「人数×一人当り換気量」と「気積×シックハウス換気回数」を比較し、大きい方を採用します。<br>
+                    <span style="font-size:0.9em; color:#666;">※一人当りの換気量は、建築基準法では <strong>20m³/h</strong> 以上とされています。</span></p>
+                    <p><strong>【換気回数による計算】</strong><br>
+                    「気積×換気回数」で単純計算します。</p>
+                </div>
+                <div class="ad-space ad-side-rect">広告 (PC Sidebar Rect)</div>
+            </div>
+        </div>
+        <div class="ad-space ad-bottom-banner">ボトムバナー広告</div>
+
+        <footer style="text-align: center; padding: 20px; font-size: 12px; color: #666; margin-top: 10px;">
+            <a href="pages/privacy.html" style="color: #666; text-decoration: none;">プライバシーポリシー</a> | 
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdn8MAdPVcien8D5XKDsifUt2bgxUL-oJJvTfFkS15uXYLn7A/viewform?usp=header" target="_blank" style="color: #666; text-decoration: none;">お問い合わせ</a>
+            <p>&copy; 2026 Setsubi Calc App</p>
+        </footer>
+        
+    </div>
+
+    <script>
+        window.onload = function() {
+            addRoom();
+        };
+
+        // 部屋追加処理
+        function addRoom() {
+            const container = document.getElementById('rooms-container');
+            const id = Date.now();
+            const div = document.createElement('div');
+            div.className = 'room-row';
+            div.id = 'room-' + id;
+            
+            // HTML構築
+            // 【修正】updateFieldsに渡すための初期コールは不要（初期HTMLに直書きするため）
+            // ただし動的エリアの初期状態は JS で制御するため、下部で updateFields を呼ぶか、直書きを調整する
+            
+            div.innerHTML = `
+                <div class="row-line">
+                    <div class="input-group col-method">
+                        <label>計算方法</label>
+                        <select name="calcMethod" onchange="updateFields(${id}, this.value)">
+                            <option value="person">人員による計算</option>
+                            <option value="rate">換気回数で計算</option>
+                        </select>
+                    </div>
+                    <div class="input-group col-name">
+                        <label>室名</label>
+                        <input type="text" name="roomName" placeholder="例: 事務室">
+                    </div>
+                </div>
+
+                <div class="row-line">
+                    <div class="input-group col-num">
+                        <label>面積 (㎡)</label>
+                        <input type="number" name="area" step="0.01" min="0">
+                    </div>
+                    <div class="input-group col-num">
+                        <label>天井高 (m)</label>
+                        <input type="number" name="height" step="0.01" value="2.5">
+                    </div>
+                </div>
+
+                <div class="dynamic-area" id="dynamic-${id}">
+                    <div class="row-line">
+                        <div class="input-group col-num" style="flex: 0.6;">
+                            <label>人数 (人)</label>
+                            <input type="number" name="people" placeholder="0" min="0">
+                        </div>
+                        <div class="input-group col-num" style="flex: 1;">
+                            <label>一人当り(m³/h)</label>
+                            <input type="number" name="personRate" value="20" min="0">
+                        </div>
+                        <div class="input-group col-num" style="flex: 1.4;">
+                            <label>シック換気回数</label>
+                            <select name="sickRate">
+                                <option value="0.3">0.3 (非住宅等)</option>
+                                <option value="0.5">0.5 (住宅等)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row-line" style="margin-top:10px; justify-content: flex-end;">
+                    <div class="col-del">
+                        <button type="button" class="btn-delete" onclick="removeRoom(${id})">
+                            <i class="fa-solid fa-trash"></i>&nbsp;削除
+                        </button>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        // 入力項目の切り替え処理
+        function updateFields(id, method) {
+            const area = document.getElementById('dynamic-' + id);
+            
+            if (method === 'person') {
+                // 人員計算用フォーム
+                area.innerHTML = `
+                    <div class="row-line">
+                        <div class="input-group col-num" style="flex: 0.6;">
+                            <label>人数 (人)</label>
+                            <input type="number" name="people" placeholder="0" min="0">
+                        </div>
+                        <div class="input-group col-num" style="flex: 1;">
+                            <label>一人当り(m³/h)</label>
+                            <input type="number" name="personRate" value="20" min="0">
+                        </div>
+                        <div class="input-group col-num" style="flex: 1.4;">
+                            <label>シック換気回数</label>
+                            <select name="sickRate">
+                                <option value="0.3">0.3 (非住宅等)</option>
+                                <option value="0.5">0.5 (住宅等)</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 換気回数用フォーム
+                area.innerHTML = `
+                    <div class="row-line">
+                        <div class="input-group col-num">
+                            <label>換気回数 (回/h)</label>
+                            <input type="number" name="rate" placeholder="例: 5" step="0.1">
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function removeRoom(id) {
+            const target = document.getElementById('room-' + id);
+            if (target) target.remove();
+        }
+
+        function clearForm() {
+            document.getElementById('rooms-container').innerHTML = '';
+            document.getElementById('resultArea').innerHTML = '';
+            addRoom();
+        }
+
+        // 計算実行
+        function calculateVent() {
+            const resultArea = document.getElementById('resultArea');
+            const rows = document.querySelectorAll('.room-row');
+            
+            if (rows.length === 0) {
+                resultArea.innerHTML = '<div class="result-box error-msg">部屋を追加してください</div>';
+                return;
+            }
+
+            let totalVent = 0;
+            let tableHTML = '';
+
+            rows.forEach(row => {
+                // 共通項目の取得
+                const name = row.querySelector('[name="roomName"]').value || '(名称なし)';
+                const area = parseFloat(row.querySelector('[name="area"]').value) || 0;
+                const height = parseFloat(row.querySelector('[name="height"]').value) || 0;
+                const method = row.querySelector('[name="calcMethod"]').value;
+
+                const volume = area * height;
+                let reqVent = 0;
+                let detailText = '';
+
+                if (method === 'person') {
+                    // 人員計算モード
+                    const peopleInput = row.querySelector('[name="people"]');
+                    const personRateInput = row.querySelector('[name="personRate"]'); // 追加入力
+                    const sickRateInput = row.querySelector('[name="sickRate"]');
+                    
+                    const people = peopleInput ? (parseFloat(peopleInput.value) || 0) : 0;
+                    const personRate = personRateInput ? (parseFloat(personRateInput.value) || 20) : 20; // デフォルト20
+                    const sickRate = sickRateInput ? parseFloat(sickRateInput.value) : 0.3;
+
+                    // 計算A: 人数 × 指定換気量(通常20)
+                    const ventPeople = people * personRate;
+                    // 計算B: 気積 × 係数(0.3 or 0.5)
+                    const ventSick = volume * sickRate;
+                    
+                    // 大きい方を採用
+                    reqVent = Math.max(ventPeople, ventSick);
+                    
+                    // 表示テキスト更新
+                    detailText = `人数:${people}人 × ${personRate}<br><span style="color:#888; font-size:0.9em;">(人:${ventPeople} vs シ:${ventSick.toFixed(0)})</span>`;
+
+                } else {
+                    // 換気回数モード
+                    const rateInput = row.querySelector('[name="rate"]');
+                    const rate = rateInput ? (parseFloat(rateInput.value) || 0) : 0;
+                    
+                    reqVent = volume * rate;
+                    detailText = `回数: ${rate} 回/h`;
+                }
+
+                totalVent += reqVent;
+
+                tableHTML += `
+                    <tr>
+                        <td>${name}</td>
+                        <td>${volume.toFixed(1)} m³</td>
+                        <td>${detailText}</td>
+                        <td><strong>${reqVent.toFixed(1)}</strong></td>
+                    </tr>
+                `;
+            });
+
+            // 結果表示
+            resultArea.innerHTML = `
+                <div class="result-box">
+                    <div class="result-title">合計必要換気量: ${totalVent.toFixed(1)} m³/h</div>
+                    <div class="result-detail" style="overflow-x:auto;">
+                        <table class="result-table">
+                            <thead>
+                                <tr>
+                                    <th>室名</th>
+                                    <th>気積</th>
+                                    <th>条件・内訳</th>
+                                    <th>必要量(m³/h)</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableHTML}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
